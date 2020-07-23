@@ -55,6 +55,19 @@ public:
     int threshold;
 };
 
+class MultipleInputFile {
+public:
+    MultipleInputFile() {
+        enabled = false;
+        numFile = 0;
+    }
+public:
+    vector<string> inlistR1;
+    vector<string> inlistR2;
+    bool enabled;
+    int numFile;
+};
+
 class LowComplexityFilterOptions {
 public:
     LowComplexityFilterOptions() {
@@ -282,13 +295,16 @@ public:
     Options();
     void init();
     bool isPaired();
+    int numInputFile;
     bool validate();
     bool adapterCuttingEnabled();
     bool polyXTrimmingEnabled();
     string getAdapter1();
     string getAdapter2();
     void initIndexFiltering(string blacklistFile1, string blacklistFile2, int threshold = 0);
+    void initMultipleInputFile();
     vector<string> makeListFromFileByLine(string filename);
+    vector<string> makeListFromInputFiles(string filename, vector<int> poss);
     bool shallDetectAdapter(bool isR2 = false);
     void loadFastaAdapters();
 
@@ -363,6 +379,8 @@ public:
     LowComplexityFilterOptions complexityFilter;
     // black lists for filtering by index
     IndexFilterOptions indexFilter;
+    // multiple input files
+    MultipleInputFile multipleInput;
     // options for duplication profiling
     DuplicationOptions duplicate;
     // max value of insert size

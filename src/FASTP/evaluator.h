@@ -21,8 +21,8 @@ public:
     bool isTwoColorSystem();
     void evaluateSeqLen();
     void evaluateOverRepSeqs();
-    void computeOverRepSeq(string filename, map<string, long>& hotseqs, int seqLen);
-    int computeSeqLen(string filename);
+    void computeOverRepSeq(vector<string> filename, map<string, long>& hotseqs, int seqLen);
+    int computeSeqLen(vector<string> filename);
 
     static bool test();
     static string matchKnownAdapter(string seq);

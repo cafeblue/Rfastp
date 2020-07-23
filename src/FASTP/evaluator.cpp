@@ -15,7 +15,7 @@ Evaluator::~Evaluator(){
 }
 
 bool Evaluator::isTwoColorSystem() {
-    FastqReader reader(mOptions->in1);
+    FastqReader reader(mOptions->multipleInput.inlistR1);
 
     Read* r = reader.read();
 
@@ -33,13 +33,13 @@ bool Evaluator::isTwoColorSystem() {
 }
 
 void Evaluator::evaluateSeqLen() {
-    if(!mOptions->in1.empty())
-        mOptions->seqLen1 = computeSeqLen(mOptions->in1);
-    if(!mOptions->in2.empty())
-        mOptions->seqLen2 = computeSeqLen(mOptions->in2);
+    if(!mOptions->multipleInput.inlistR1[0].empty())
+        mOptions->seqLen1 = computeSeqLen(mOptions->multipleInput.inlistR1);
+    if(!mOptions->multipleInput.inlistR2[0].empty())
+        mOptions->seqLen2 = computeSeqLen(mOptions->multipleInput.inlistR2);
 }
 
-int Evaluator::computeSeqLen(string filename) {
+int Evaluator::computeSeqLen(vector<string> filename) {
     FastqReader reader(filename);
 
     long records = 0;
@@ -63,7 +63,7 @@ int Evaluator::computeSeqLen(string filename) {
     return seqlen;
 }
 
-void Evaluator::computeOverRepSeq(string filename, map<string, long>& hotseqs, int seqlen) {
+void Evaluator::computeOverRepSeq(vector<string> filename, map<string, long>& hotseqs, int seqlen) {
     FastqReader reader(filename);
 
     map<string, long> seqCounts;
@@ -157,14 +157,14 @@ void Evaluator::computeOverRepSeq(string filename, map<string, long>& hotseqs, i
 }
 
 void Evaluator::evaluateOverRepSeqs() {
-    if(!mOptions->in1.empty())
-        computeOverRepSeq(mOptions->in1, mOptions->overRepSeqs1, mOptions->seqLen1);
-    if(!mOptions->in2.empty())
-        computeOverRepSeq(mOptions->in2, mOptions->overRepSeqs2, mOptions->seqLen2);
+    if(!mOptions->multipleInput.inlistR1[0].empty())
+        computeOverRepSeq(mOptions->multipleInput.inlistR1, mOptions->overRepSeqs1, mOptions->seqLen1);
+    if(!mOptions->multipleInput.inlistR2[0].empty())
+        computeOverRepSeq(mOptions->multipleInput.inlistR2, mOptions->overRepSeqs2, mOptions->seqLen2);
 }
 
 void Evaluator::evaluateReadNum(long& readNum) {
-    FastqReader reader(mOptions->in1);
+    FastqReader reader(mOptions->multipleInput.inlistR1);
 
     const long READ_LIMIT = 512*1024;
     const long BASE_LIMIT = 151 * 512*1024;
@@ -207,7 +207,7 @@ void Evaluator::evaluateReadNum(long& readNum) {
 
 // Depreciated
 string Evaluator::evalAdapterAndReadNumDepreciated(long& readNum) {
-    FastqReader reader(mOptions->in1);
+    FastqReader reader(mOptions->multipleInput.inlistR1);
     // stat up to 1M reads
     const long READ_LIMIT = 1024*1024;
     const long BASE_LIMIT = 151 * READ_LIMIT;
@@ -409,9 +409,9 @@ string Evaluator::evalAdapterAndReadNumDepreciated(long& readNum) {
 }
 
 string Evaluator::evalAdapterAndReadNum(long& readNum, bool isR2) {
-    string filename = mOptions->in1;
+    vector<string> filename = mOptions->multipleInput.inlistR1;
     if(isR2)
-        filename = mOptions->in2;
+        filename = mOptions->multipleInput.inlistR2;
     FastqReader reader(filename);
     // stat up to 256K reads
     const long READ_LIMIT = 256*1024;

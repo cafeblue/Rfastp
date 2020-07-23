@@ -38,6 +38,41 @@ bool Options::isPaired() {
     return in2.length() > 0 || interleavedInput;
 }
 
+void Options::initMultipleInputFile() {
+    int numR1 = 1;
+    int numR2 = 1;
+    int j = 0;
+    vector<int> splitPossR1;
+    for(int i=0; i<in1.length(); i++) {
+        if (in1[i] == ',') {
+            multipleInput.enabled = true;
+	    ++numR1;
+	    j = i +1;
+	    splitPossR1.push_back(j);
+        }
+    }
+
+    multipleInput.inlistR1 = makeListFromInputFiles(in1, splitPossR1);
+    multipleInput.numFile = numR1;
+
+    if (!in2.empty()) {
+        int j = 0;
+	vector<int> splitPossR2;
+        for (int i=0; i<in2.length(); i++) {
+            if (in2[i] == ',') {
+                ++numR2;
+	        j = i +1;
+	        splitPossR2.push_back(j);
+            }
+        }
+        if (numR1 != numR2) {
+            Rcpp::Rcerr << "number of input R1/R2 files not identical! there are " << numR1 << " files in read1, but " << numR2 << " files in read2." << endl;
+        }
+        multipleInput.inlistR2 = makeListFromInputFiles(in2, splitPossR2);
+    }
+}
+
+
 bool Options::adapterCuttingEnabled() {
     if(adapter.enabled){
         if(isPaired() || !adapter.sequence.empty())
@@ -87,11 +122,12 @@ bool Options::validate() {
             in1 = "/dev/stdin";
         else
             Rcpp::stop("read1 input should be specified by --in1, or enable --stdin if you want to read STDIN");
-    } else {
+    }
+    else if (!multipleInput.enabled) {
         check_file_valid(in1);
     }
 
-    if(!in2.empty()) {
+    if(!in2.empty() && !multipleInput.enabled) {
         check_file_valid(in2);
     }
 
@@ -492,6 +528,25 @@ vector<string> Options::makeListFromFileByLine(string filename) {
         ret.push_back(linestr);
     }
     Rcpp::Rcerr << endl;
+    return ret;
+}
+
+vector<string> Options::makeListFromInputFiles(string filenames, vector<int> poss) {
+    vector<string> ret;
+    int j = 0;
+    if (poss.size() == 0) {
+        ret.push_back(filenames);
+	return ret;
+    }
+
+    for(int i=0; i<poss.size(); i++) {
+        string subfn = filenames.substr(j, poss[i]-j-1);
+	j = poss[i];
+	check_file_valid(subfn);
+        ret.push_back(subfn);
+    }
+    check_file_valid(filenames.substr(j,filenames.length()));
+    ret.push_back(filenames.substr(j,filenames.length()));
     return ret;
 }
 

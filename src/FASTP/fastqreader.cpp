@@ -5,15 +5,16 @@
 
 #define FQ_BUF_SIZE (1<<20)
 
-FastqReader::FastqReader(string filename, bool hasQuality, bool phred64){
+FastqReader::FastqReader(vector<string> filename, bool hasQuality, bool phred64){
     mFilename = filename;
-    mZipFile = NULL;
+    vector<gzFile> mZipFile;
     mZipped = false;
     mFile = NULL;
     mStdinMode = false;
     mPhred64 = phred64;
     mHasQuality = hasQuality;
     mBuf = new char[FQ_BUF_SIZE];
+    tmpBuf = new char[FQ_BUF_SIZE];
     mBufDataLen = 0;
     mBufUsedLen = 0;
     mHasNoLineBreakAtEnd = false;
@@ -31,7 +32,13 @@ bool FastqReader::hasNoLineBreakAtEnd() {
 
 void FastqReader::readToBuf() {
     if(mZipped) {
-        mBufDataLen = gzread(mZipFile, mBuf, FQ_BUF_SIZE);
+        int tmpBufDataLen = 0;
+        for (int i=0; i<mFilename.size(); i++) {
+	    tmpBufDataLen = gzread(mZipFile[i], tmpBuf, FQ_BUF_SIZE);
+	    mBufDataLen = mBufDataLen + tmpBufDataLen;
+	    strcat(mBuf, tmpBuf);
+	    delete[] tmpBuf;
+        }
         if(mBufDataLen == -1) {
             Rcpp::Rcerr << "Error to read gzip file" << endl;
         }
@@ -47,19 +54,24 @@ void FastqReader::readToBuf() {
 }
 
 void FastqReader::init(){
-    if (ends_with(mFilename, ".gz")){
-        mZipFile = gzopen(mFilename.c_str(), "r");
+    if (ends_with(mFilename[0], ".gz")){
+        //mZipFile = gzopen(mFilename.c_str(), "r");
         mZipped = true;
-        gzrewind(mZipFile);
+	for(int i=0; i<mFilename.size(); i++) {
+            gzFile tmpF = gzopen(mFilename[i].c_str(), "r");
+            mZipFile.push_back(tmpF);
+	    gzrewind(tmpF);
+	}
+        //gzrewind(mZipFile);
     }
     else {
-        if(mFilename == "/dev/stdin") {
+        if(mFilename[0] == "/dev/stdin") {
             mFile = stdin;
         }
         else
-            mFile = fopen(mFilename.c_str(), "rb");
+            mFile = fopen(mFilename[0].c_str(), "rb");
         if(mFile == NULL) {
-          Rcpp::stop("Failed to open file: " + mFilename);
+          Rcpp::stop("Failed to open file: " + mFilename[0]);
         }
         mZipped = false;
     }
@@ -68,15 +80,21 @@ void FastqReader::init(){
 
 void FastqReader::getBytes(size_t& bytesRead, size_t& bytesTotal) {
     if(mZipped) {
-        bytesRead = gzoffset(mZipFile);
+        bytesRead = 0;
+	for (int i=0; i<mZipFile.size(); i++) {
+            bytesRead += gzoffset(mZipFile[i]);
+	}	
     } else {
         bytesRead = ftell(mFile);//mFile.tellg();
     }
 
     // use another ifstream to not affect current reader
-    ifstream is(mFilename);
-    is.seekg (0, is.end);
-    bytesTotal = is.tellg();
+    bytesTotal = 0;
+    for (int i=0; i<mFilename.size(); i++) { 
+        ifstream is(mFilename[i]);
+        is.seekg (0, is.end);
+        bytesTotal += is.tellg();
+    }
 }
 
 void FastqReader::clearLineBreaks(char* line) {
@@ -159,7 +177,7 @@ string FastqReader::getLine(){
 
 bool FastqReader::eof() {
     if (mZipped) {
-        return gzeof(mZipFile);
+        return gzeof(mZipFile[mZipFile.size()-1]);
     } else {
         return feof(mFile);//mFile.eof();
     }
@@ -167,7 +185,7 @@ bool FastqReader::eof() {
 
 Read* FastqReader::read(){
     if (mZipped){
-        if (mZipFile == NULL)
+        if (mZipFile[0] == NULL)
             return NULL;
     }
 
@@ -210,10 +228,12 @@ Read* FastqReader::read(){
 
 void FastqReader::close(){
     if (mZipped){
-        if (mZipFile){
-            gzclose(mZipFile);
-            mZipFile = NULL;
-        }
+	for(int i=0; i<mZipFile.size(); i++) {    
+            if (mZipFile[i]){
+                gzclose(mZipFile[i]);
+                mZipFile[i] = NULL;
+            }
+	}
     }
     else {
         if (mFile){
@@ -254,8 +274,12 @@ bool FastqReader::isZipped(){
 }
 
 bool FastqReader::test(){
-    FastqReader reader1("testdata/R1.fq");
-    FastqReader reader2("testdata/R1.fq.gz");
+    vector<string> tmpVR1;
+    vector<string> tmpVR2;
+    tmpVR1.push_back("testdata/R1.fq");
+    tmpVR2.push_back("testdata/R2.fq.gz");
+    FastqReader reader1(tmpVR1); 
+    FastqReader reader2(tmpVR2); 
     Read* r1 = NULL;
     Read* r2 = NULL;
     while(true){
@@ -277,7 +301,7 @@ FastqReaderPair::FastqReaderPair(FastqReader* left, FastqReader* right){
     mRight = right;
 }
 
-FastqReaderPair::FastqReaderPair(string leftName, string rightName, bool hasQuality, bool phred64, bool interleaved){
+FastqReaderPair::FastqReaderPair(vector<string> leftName, vector<string> rightName, bool hasQuality, bool phred64, bool interleaved){
     mInterleaved = interleaved;
     mLeft = new FastqReader(leftName, hasQuality, phred64);
     if(mInterleaved)

@@ -15,7 +15,7 @@
 
 class FastqReader{
 public:
-    FastqReader(string filename, bool hasQuality = true, bool phred64=false);
+    FastqReader(vector<string> filename, bool hasQuality = true, bool phred64=false);
     ~FastqReader();
     bool isZipped();
 
@@ -40,13 +40,14 @@ private:
     void readToBuf();
 
 private:
-    string mFilename;
-    gzFile mZipFile;
+    vector<string> mFilename;
+    vector<gzFile> mZipFile;
     FILE* mFile;
     bool mZipped;
     bool mHasQuality;
     bool mPhred64;
     char* mBuf;
+    char* tmpBuf;
     int mBufDataLen;
     int mBufUsedLen;
     bool mStdinMode;
@@ -57,7 +58,7 @@ private:
 class FastqReaderPair{
 public:
     FastqReaderPair(FastqReader* left, FastqReader* right);
-    FastqReaderPair(string leftName, string rightName, bool hasQuality = true, bool phred64 = false, bool interleaved = false);
+    FastqReaderPair(vector<string> leftName, vector<string> rightName, bool hasQuality = true, bool phred64 = false, bool interleaved = false);
     ~FastqReaderPair();
     ReadPair* read();
 public:
